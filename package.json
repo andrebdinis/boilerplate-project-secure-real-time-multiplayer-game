@@ -4,7 +4,7 @@
   "description": "Information Security 5: Secure Real-Time Multiplayer Game",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js",
+    "start": "nodemon --delay 200 --no-deprecation server.js",
     "test": "PORT=3005 mocha --require @babel/register --recursive --exit --ui tdd tests/"
   },
   "dependencies": {

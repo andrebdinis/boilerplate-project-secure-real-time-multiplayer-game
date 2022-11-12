@@ -10,8 +10,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="../public/style.css" type="text/css" />
-    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
+    <script>
+      //---------> script added!
+      const socket = io();
+    </script>
   </head>
   <body>
     <header>
@@ -24,7 +28,7 @@
         id="game-window" 
         width="640" 
         height="480"
-      >
+      >Your browser does not support the HTML5 canvas tag. <!-- added! -->
       </canvas>
     </div>
   </body>

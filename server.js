@@ -34,11 +34,6 @@ app.use(helmet.xssFilter()) // Prevent cross-site scripting (XSS) attacks
 app.use(helmet.noCache()) // Nothing from the website is cached in the client
 app.use(function(req, res, next) {
   res.header('X-Powered-By', 'PHP 7.4.3')
-  //res.set('x-powered-by', 'PHP 7.4.3')
-  
-  // Check if "X-Powered-By" header changed
-  //const xPoweredBy = getHeaderXPoweredBy(res)
-  //console.log('X-Powered-By:', xPoweredBy)
   next()
 })
 function getHeaderXPoweredBy(res) {
@@ -73,51 +68,106 @@ app.use(function(req, res, next) {
     .send('Not Found');
 });
 
-//--------------------------------------------------------------- // added!
-//------------------ SOCKET.IO SERVER-SIDE (NODE.js) ---------------------
-
-io.use((socket, next) => {
-  next();
-})
+//------------------ SOCKET.IO SERVER-SIDE (NODE.js) --------------------- added!
+let Collectible = require('./public/Collectible.mjs')
+let { generateStartPos, canvasCalcs } = require('./public/canvas-data.mjs')
 
 let players = []
-let coin
+let coins = []
+let coins_limit = 5
+let coin = new Collectible({
+    id: uid(),
+    x: generateStartPos(canvasCalcs.playFieldMinX, canvasCalcs.playFieldMaxX, 5),
+    y: generateStartPos(canvasCalcs.playFieldMinY, canvasCalcs.playFieldMaxY, 5)
+  })
+coins.push(coin)
+let result
+
 
 io.on('connection', (socket) => {
   console.log(`Connected ${socket.id}`)
-  io.emit('current-sockets', Object.keys(io.sockets.sockets))
 
-  // Server receives the message that one socket wants to start its game,
-  // and sends that information to all sockets so that they update themselves
-  socket.on('startGame', () => {
-    io.emit('startGame', { id: socket.id, players: players, coin: coin })
-  })
-
-  // Server receives a new player
+  socket.emit('init', { id: socket.id, players: players, coin: coin })
+    
   socket.on('new-player', (newPlayer) => {
-    // If server has not already have the new player, adds him to its list
-    let hasPlayer = players.slice().filter((p) => p.id == newPlayer.id).length
-    if (!hasPlayer) {
-      players.push(newPlayer)
-    }
-    // Server must inform all sockets EXCEPT THE SENDER of this new player
     socket.broadcast.emit('new-player', newPlayer)
+    let hasPlayer = players.slice().filter((p) => p.id === newPlayer.id).length
+    if (!hasPlayer) players.push(newPlayer)
   })
+
+  socket.on('move-player', (dir, posObj) => {
+    socket.broadcast.emit('move-player', { id: socket.id, dir: dir, posObj: posObj})
+  })
+
+  socket.on('stop-player', (dir, posObj) => {
+    socket.broadcast.emit('stop-player', { id: socket.id, dir: dir, posObj: posObj})
+  })
+
+  socket.on('destroy-item', async ({ playerId, coinValue, coinId }) => {
+    if(coin.id === coinId) {
+
+      // Find and Update Player's Score
+      let playerObj = players.find((player) => player.id === playerId)
+      playerObj.score += coinValue
+      io.emit('update-player', playerObj)
+
+      // Was It The Last Coin To Catch ?
+      if(coins.length === coins_limit) {
+        
+        // Get Sorted List Of Players By Score (descending order) 
+        let sortedPlayers = players.slice().sort((a,b) => b.score - a.score)
+        // Get The Winner (Player)
+        let winner = sortedPlayers[0]
+
+        // Send 'Win' or 'Lose' message to Each Player
+        sortedPlayers.forEach((player) => {
+          if(player.id === winner.id) {
+            io.to(winner.id).emit('end-game', 'win')
+          }
+          else {
+            io.to(player.id).emit('end-game', 'lose')
+          }
+        })
+        
+        /*const sockets = await io.fetchSockets()
+
+        for (let s of sockets) {
+          if(s.id === winner.id) {
+            s.emit('end-game', 'win')
+            s.broadcast.emit('end-game', 'lose')
+          }
+        }*/
+        
+        /*for (const [_, socket] of io.of("/").sockets) {
+          if(socket.id === winner.id) {
+            socket.emit('end-game', 'win')
+            socket.broadcast.emit('end-game', 'lose')
+          }
+        }*/
+      }
+      else {
+        // Create New Coin
+        coinValue = (coinValue == 1 || coinValue == 2) ? coinValue + 1 : 1
+        coin = new Collectible({
+          id: uid(),
+          value: coinValue,
+          x: generateStartPos(canvasCalcs.playFieldMinX, canvasCalcs.playFieldMaxX, 5),
+          y: generateStartPos(canvasCalcs.playFieldMinY, canvasCalcs.playFieldMaxY, 5)
+        })
+        io.emit('new-coin', coin)
   
-  socket.on('new-coin', (newCoin) => {
-    coin = newCoin
-    socket.broadcast.emit('new-coin', coin)
-  })
+        // Save New Coin In Collection Of Coins
+        coins.push(coin)
+      }
+    }
+  })  
 
   socket.on('disconnect', () => {
     console.log(`Disconnected ${socket.id}`)
-    io.emit('current-sockets', Object.keys(io.sockets.sockets))
-    
     io.emit('remove-player', socket.id)
     players = players.slice().filter((player) => player.id != socket.id)
   })
 })
-
 
 
 //---------------------------------------------------------------

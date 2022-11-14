@@ -1,280 +1,150 @@
 import Player from './Player.mjs';
 import Collectible from './Collectible.mjs';
-import controls from './controls.mjs'
-import { playerArt, itemArt, getItemImage } from './art.mjs'
-import { uid, getRandomCoordinates, getDistancedRandomCoordinates, getRandomArt } from './random.mjs'
-import { component, textComponent, gamingFrameComponent } from './components/components.mjs'
-
-var background, title_controls, title_coinRace, title_rank
-var gamingFrame, playerOne, playerTwo, item
-var currPlayers = []
-function findPlayer(arr, socket_id) {
-  for (let p of arr) {
-    if (p.id == socket_id)
-      return true
-  }
-  return false
-}
-//var obstacle; var obstacles = []; var score;
-const colors = {
-  white: 'rgba(255, 255, 255, 1)', // "white"
-  darkBlue: 'rgba(0, 36, 57, 1)'
-}
-function getGamingFrameConfig() {
-  const border = 5
-  return {
-    border : 5,
-    width : gameArea.canvas.width - (border * 2),
-    height : gameArea.canvas.height - (50 + border),
-    strokeStyle : colors.white,
-    lineWidth : '3',
-    x : border,
-    y : 50
-  }
-}
-function constructGameArea() {
-  const gameAreaConstruction = {
-    canvas : document.getElementById('game-window'),
-    status: 'constructed',
-    start : function() {
-      console.log('GAME AREA: START()')
-      this.canvas.width = 640
-      this.canvas.height = 480
-      this.context = this.canvas.getContext('2d', { alpha: false, willReadFrequently: true })
-      this.frameNo = 0 // frames counter
-      this.gamingFrame = getGamingFrameConfig()
-      this.interval = setInterval(updateGameArea, 20) // component is drawn and cleared 50 times per second
-      // Keyboard Controls
-      window.addEventListener('keydown', function(e) {
-        gameArea.keys = (gameArea.keys || [])
-        gameArea.keys[e.keyCode] = true
-      })
-      window.addEventListener('keyup', function(e) {
-        gameArea.keys[e.keyCode] = false
-      })
-      this.status = 'started'
-    },
-    clear : function() {
-      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
-      status = 'cleared'
-    },
-    stop : function() {
-      clearInterval(this.interval)
-      status = 'stopped'
-    }
-  }
-  return gameAreaConstruction
-}
-var gameArea = constructGameArea()
-
-
-
-
-function startGame() {
-  console.log('START GAME')
-
-  // Create Background Component
-  background = new component(gameArea.canvas.width, gameArea.canvas.height, colors.darkBlue, 0, 0)
-
-  // Create Text Components
-  title_controls = new textComponent('13px', 'Press Start 2P', 'left', colors.white, 10, 35)
-  title_coinRace = new textComponent('16px', 'Press Start 2P', 'center', colors.white, gameArea.canvas.width / 2, 35)
-  title_rank = new textComponent('13px', 'Press Start 2P', 'right', colors.white, gameArea.canvas.width - 10, 35)
-
-  const gfConfig = getGamingFrameConfig()
-
-  // Create Gaming Frame Component
-  gamingFrame = new gamingFrameComponent(gfConfig.width, gfConfig.height, gfConfig.strokeStyle, gfConfig.lineWidth, gfConfig.x, gfConfig.y)
-
-  // Create Player One
-  //(...)
-
-  // Create Item
-  //(...)
-
-  gameArea.start()
-}
-
-function restartGame(gameArea) {
-  console.log('RESTART GAME')
-  gameArea.stop()
-  gameArea = constructGameArea()
-  gameArea.status = 'restarting...'
-  startGame()
-}
-
-function updateGameArea() {
-  console.log('[--UPDATE GAME AREA--]')
-
-  // Checks for Collision with Item
-  if (item) {
-    currPlayers.map((player) => {
-      if (player.collisionWith(item)) {   
-        player.score += item.value
-        console.log(`Player ${player.id} Score:`, player.score)
-        let newCoords = getDistancedRandomCoordinates(getGamingFrameConfig(), player)
-        item = new Collectible({ id: uid(), image: getRandomArt(itemArt), width: 25, height: 25, x: newCoords.x, y: newCoords.y, value: 1 })
-        socket.emit('new-coin', item)
-      }
-    
-      if (player.score == 5) {
-        console.log(`SCORE\nPlayer ${player.id}:`, player.score)
-        alert('GAME OVER')
-        restartGame(gameArea)
-      }
-    })
-  }
-
-  // Clear Canvas
-  gameArea.clear()
-
-  // Frame Increment
-  gameArea.frameNo += 1
-  
-  // Keyboard Controls ("WSAD" or "Arrows")
-  currPlayers.map((player) => controls(gameArea, player, playerArt, socket))
-  //controls(gameArea, playerOne, playerArt)
-
-  // Draw Background
-  background.update()
-
-  // Draw "Controls: WASD"
-  title_controls.text = 'Controls: WASD'
-  title_controls.update()
-
-  // Draw "Coin Race"
-  title_coinRace.text = 'Coin Race'
-  title_coinRace.update()
-
-  // Draw "Rank: 1 / 1"
-  title_rank.text = 'Rank: 1 / 1'
-  title_rank.update()
-  
-  // Draw Gaming Frame
-  gamingFrame.update()
-
-  // Draw and Update All Players
-  currPlayers.map((player) => {
-    player.newPos()
-    player.update()
-  })
-
-  if (item) {
-    item.newPos()
-    item.update()
-  }
-  
-
-}
-
-// Condition for applying an action every 'n' frames
-function everyInterval(n) {
-  if ((gameArea.frameNo / n) % 1 == 0) return true
-  return false
-}
-
-
-
-
-
-
-
-window.addEventListener('load', (event) => {
-  console.log('PAGE LOADED!')
-
-  // Socket says to server he wants to start its game
-  // so it creates a coin for all sockets to see
-  //let newCoords = getDistancedRandomCoordinates(gfConfig, playerOne)
-  socket.emit('startGame')
-
-  // Server allowed for socket to start the game
-  socket.on('startGame', ({ id, players, coin }) => {
-
-    // Does a coin already exist in game?
-    if(typeof coin != 'object') {
-      // Create new Coin
-      let newCoords = getRandomCoordinates(getGamingFrameConfig())
-      item = new Collectible({ id: uid(), image: getRandomArt(itemArt), width: 25, height: 25, x: newCoords.x, y: newCoords.y, value: 1 })
-      socket.emit('new-coin', item)
-    }
-    else {
-      // Use the existing Coin
-      if(typeof coin == 'object') {
-        let src = coin.src
-        coin.image = getItemImage(src)
-        item = new Collectible(coin)
-      }
-    }
-
-    // If this socket has not its game started...
-    if(!(gameArea.status == 'started')) {
-
-      startGame()
-
-      // Create Main Player
-      let newCoords = getRandomCoordinates(getGamingFrameConfig())
-      let mainPlayer = new Player({ id: id, image: playerArt.player1, width: 50, height: 50, x: newCoords.x, y: newCoords.y, score: 0, isMain: true })
-  
-      // Populate already online players + new Main Player
-      currPlayers = players.slice().map((obj) => {
-        obj.image = playerArt.player2
-        obj.isMain = false
-        return new Player(obj)
-      }).concat(mainPlayer)
-      
-      // Send new Main Player to Server
-      socket.emit('new-player', mainPlayer)
-    }
-    // else socket already has its game started
-    else {}
-    
-    // Socket receives a new player from Server
-    // If he doesn't have on its online players,
-    // he shall add him as a secondary player
-    socket.on('new-player', (newPlayer) => {
-      let hasPlayer = currPlayers.slice().filter((p) => p.id == newPlayer.id).length
-      if (!hasPlayer) {
-        let otherPlayer = new Player(newPlayer)
-        otherPlayer.image = playerArt.player2
-        otherPlayer.isMain = false
-        currPlayers.push(otherPlayer)
-      }
-    })
-
-    socket.on('new-coin', (newCoin) => {
-      let src = newCoin.src
-      newCoin.image = getItemImage(src)
-      item = new Collectible(newCoin)
-    })
-
-    socket.on('remove-player', id => {
-      console.log('REMOVE-PLAYER', id)
-      currPlayers = currPlayers.slice().filter((player) => player.id != id)
-    })
-
-   
-  });
-
-  socket.on('current-sockets', (currentSockets) => {
-    console.log('Current Sockets:', currentSockets.length)
-  })
-
-}, false)
-//window.addEventListener('load', /*(event)=>{}*/ startGame, false)
-//window.onload = startGame()
-//document.addEventListener('DOMContentLoaded', function(e) {}, false)
+import controls from './controls.mjs';
+import { generateStartPos, canvasCalcs } from './canvas-data.mjs';
 
 //--------------------- SOCKET.IO CLIENT-SIDE (BROWSER) ---------------------
-// NOTE: "index.html" file already has initiated socket.io client-side from the same domain / same-origin as the server (inside a <script> element). Thus, it is not necessary to import or instantiate it.
-// THUS, NOT NECESSARY TO:
-//1. import { io } from "socket.io-client";
-//2. const socket = io();
+// NOTE: "index.html" file already has initiated socket.io client-side from the same domain / same-origin as the server (inside a <script> element).
+//const socket = io();
+const canvas = document.getElementById('game-window');
+const context = canvas.getContext('2d', { alpha: false });
 
-/*socket.on("connect", () => {
-  console.log(`CLIENT: Socket ${socket.id} connected`)
-})
-socket.on("disconnect", () => {
-  console.log("Socket disconnected")
-});*/
+// Preload game assets
+const loadImage = src => {
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+
+const bronzeCoinArt = loadImage('https://cdn.freecodecamp.org/demo-projects/images/bronze-coin.png');
+const silverCoinArt = loadImage('https://cdn.freecodecamp.org/demo-projects/images/silver-coin.png');
+const goldCoinArt = loadImage('https://cdn.freecodecamp.org/demo-projects/images/gold-coin.png');
+const mainPlayerArt = loadImage('https://cdn.freecodecamp.org/demo-projects/images/main-player.png');
+const otherPlayerArt = loadImage('https://cdn.freecodecamp.org/demo-projects/images/other-player.png');
+
+let tick;
+let currPlayers = [];
+let item;
+let endGame;
+
+window.addEventListener('load', onLoad)
+
+function onLoad() {
+  socket.on('init', ({ id, players, coin }) => {
+    console.log(`Connected ${id}`);
   
-export default gameArea
+    // Cancel animation if one already exists and
+    // the page isn't refreshed, like if the server
+    // restarts
+    cancelAnimationFrame(tick);
+  
+    // Create our player when we log on
+    const mainPlayer = new Player({ 
+      x: generateStartPos(canvasCalcs.playFieldMinX, canvasCalcs.playFieldMaxX, 5),
+      y: generateStartPos(canvasCalcs.playFieldMinY, canvasCalcs.playFieldMaxY, 5),
+      id, 
+      main: true 
+    });
+  
+    controls(mainPlayer, socket);
+  
+    // Send our player back to the server
+    socket.emit('new-player', mainPlayer);
+  
+    // Add new player when someone logs on
+    socket.on('new-player', obj => {
+      // Check that player doesn't already exist
+      const playerIds = currPlayers.map(player => player.id);
+      if (!playerIds.includes(obj.id)) currPlayers.push(new Player(obj));
+    });
+  
+    // Handle movement
+    socket.on('move-player', ({ id, dir, posObj }) => {
+      const movingPlayer = currPlayers.find(obj => obj.id === id);
+      movingPlayer.moveDir(dir);
+      
+      // Force sync in case of lag
+      movingPlayer.x = posObj.x;
+      movingPlayer.y = posObj.y;
+    });
+  
+    socket.on('stop-player', ({ id, dir, posObj }) => {
+      const stoppingPlayer = currPlayers.find(obj => obj.id === id);
+      stoppingPlayer.stopDir(dir);
+  
+      // Force sync in case of lag
+      stoppingPlayer.x = posObj.x;
+      stoppingPlayer.y = posObj.y;
+    });
+  
+    // Handle new coin gen
+    socket.on('new-coin', newCoin => {
+      item = new Collectible(newCoin);
+    });
+  
+    // Handle player disconnection
+    socket.on('remove-player', id => {
+      console.log(`Disconnected ${id}`);
+      currPlayers = currPlayers.filter(player => player.id !== id);
+    });
+  
+    // Handle endGame state
+    socket.on('end-game', result => endGame = result);
+  
+    // Update scoring player's score
+    socket.on('update-player', playerObj => {
+      const scoringPlayer = currPlayers.find(obj => obj.id === playerObj.id);
+      scoringPlayer.score = playerObj.score;
+    });
+  
+    // Populate list of connected players and 
+    // create current coin when logging in
+    currPlayers = players.map(val => new Player(val)).concat(mainPlayer);
+    item = new Collectible(coin);
+  
+    draw();
+  });
+}
+
+const draw = () => {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Set background color
+  context.fillStyle = '#220';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Create border for play field
+  context.strokeStyle = 'white';
+  context.strokeRect(canvasCalcs.playFieldMinX, canvasCalcs.playFieldMinY, canvasCalcs.playFieldWidth, canvasCalcs.playFieldHeight);
+
+  // Controls text
+  context.fillStyle = 'white';
+  context.font = `13px 'Press Start 2P'`;
+  context.textAlign = 'center';
+  context.fillText('Controls: WASD', 100, 32.5);
+
+  // Game title
+  context.font = `16px 'Press Start 2P'`;
+  context.fillText('Coin Race', canvasCalcs.canvasWidth / 2, 32.5);
+
+  // Calculate score and draw players each frame
+  currPlayers.forEach(player => {
+    player.draw(context, item, { mainPlayerArt, otherPlayerArt }, currPlayers);
+  });
+  
+  // Draw current coin
+  item.draw(context, { bronzeCoinArt, silverCoinArt, goldCoinArt });
+  
+  // Remove destroyed coin
+  if (item.destroyed) {
+    socket.emit('destroy-item', { playerId: item.destroyed, coinValue: item.value, coinId: item.id });
+  }
+  
+  if (endGame) {
+    context.fillStyle = 'white';
+    context.font = `13px 'Press Start 2P'`
+    context.fillText(`You ${endGame}! Restart and try again.`, canvasCalcs.canvasWidth / 2, 80);
+  }
+  
+  if (!endGame) tick = requestAnimationFrame(draw);
+}

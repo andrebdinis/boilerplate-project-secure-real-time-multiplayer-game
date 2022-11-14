@@ -1,68 +1,87 @@
-import gameArea from './game.mjs'
+/*class Player {
+  constructor({x, y, score, id}) {
 
-class Player {
-  constructor({id, image, width, height, x, y, score, isMain=false}) {
-    this.id = id
-    this.image = image
-    //this.src = this.image.src.slice(this.image.src.indexOf('cpu'))
-    this.width = width
-    this.height = height
-    this.x = x
-    this.y = y
-    this.speedX = 0
-    this.speedY = 0
-    this.score = score
-    this.isMain = isMain
-    this.update = function() {
-      let ctx = gameArea.context
-      ctx.drawImage(this.image, this.x, this.y, this.width, this.height)
-    }
-    this.newPos = function() {
-      this.x += this.speedX
-      this.y += this.speedY
-      this.hitWalls()
-    }
-    this.hitWalls = function() {
-      var rockTop = gameArea.gamingFrame.y
-      var rockBottom = gameArea.gamingFrame.height
-      var rockLeft = gameArea.gamingFrame.x
-      var rockRight = gameArea.gamingFrame.width + gameArea.gamingFrame.border - this.width
-      if (this.y < rockTop) this.y = rockTop
-      if (this.y > rockBottom) this.y = rockBottom
-      if (this.x < rockLeft) this.x = rockLeft
-      if (this.x > rockRight) this.x = rockRight
-    }
-    this.collisionWith = function(otherObj) {
-      const to_inside = 10
-      var myLeft = this.x + to_inside
-      var myRight = this.x + (this.width) - to_inside
-      var myTop = this.y + to_inside
-      var myBottom = this.y + (this.height) - to_inside
-      var otherLeft = otherObj.x
-      var otherRight = otherObj.x + (otherObj.width)
-      var otherTop = otherObj.y
-      var otherBottom = otherObj.y + (otherObj.height)
-      var collision = true
-      if ((myRight < otherLeft) ||
-          (myLeft > otherRight) ||
-          (myTop > otherBottom) ||
-          (myBottom < otherTop)) {
-        collision = false
-      }
-      return collision
-    }
   }
 
   movePlayer(dir, speed) {
-    
+
   }
 
   collision(item) {
-    
+
   }
 
   calculateRank(arr) {
-    
+
+  }
+}
+
+export default Player;
+*/
+
+import { canvasCalcs } from './canvas-data.mjs';
+
+class Player {
+  constructor({ x = 10, y = 10, w = 30, h = 30, score = 0, main, id }) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.speed = 5;
+    this.score = score;
+    this.id = id;
+    this.movementDirection = {};
+    this.isMain = main;
+  }
+
+  draw(context, coin, imgObj, currPlayers) {
+    const currDir = Object.keys(this.movementDirection).filter(dir => this.movementDirection[dir]);
+    currDir.forEach(dir => this.movePlayer(dir, this.speed));
+
+    if (this.isMain) {
+      context.font = `13px 'Press Start 2P'`;
+      context.fillText(this.calculateRank(currPlayers), 560, 32.5);
+
+      context.drawImage(imgObj.mainPlayerArt, this.x, this.y);
+    } else {
+      context.drawImage(imgObj.otherPlayerArt, this.x, this.y);
+    }
+
+    if (this.collision(coin)) {
+      coin.destroyed = this.id;
+    }
+  }
+
+  moveDir(dir) {
+    this.movementDirection[dir] = true;
+  }
+
+  stopDir(dir) {
+    this.movementDirection[dir] = false;
+  }
+
+  movePlayer(dir, speed) {
+    if (dir === 'up') this.y - speed >= canvasCalcs.playFieldMinY ? this.y -= speed : this.y -= 0;
+    if (dir === 'down') this.y + speed <= canvasCalcs.playFieldMaxY ? this.y += speed : this.y += 0;
+    if (dir === 'left') this.x - speed >= canvasCalcs.playFieldMinX ? this.x -= speed : this.x -= 0;
+    if (dir === 'right') this.x + speed <= canvasCalcs.playFieldMaxX ? this.x += speed : this.x += 0;
+  }
+
+  collision(item) {
+    if (
+      (this.x < item.x + item.w &&
+        this.x + this.w > item.x &&
+        this.y < item.y + item.h &&
+        this.y + this.h > item.y)
+    )
+      return true;
+  }
+
+  calculateRank(arr) {
+    const sortedScores = arr.sort((a, b) => b.score - a.score);
+    const mainPlayerRank = this.score === 0 ? arr.length : (sortedScores.findIndex(obj => obj.id === this.id) + 1);
+
+    return `Rank: ${mainPlayerRank} / ${arr.length}`
   }
 }
 

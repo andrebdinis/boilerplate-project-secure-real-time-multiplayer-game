@@ -13,7 +13,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      //---------> script added!
       const socket = io();
     </script>
   </head>
@@ -23,13 +22,7 @@
     </header>
     <hr style="margin: 25px" />
     <div class="container">
-      <canvas 
-        ref="game"
-        id="game-window" 
-        width="640" 
-        height="480"
-      >Your browser does not support the HTML5 canvas tag. <!-- added! -->
-      </canvas>
+      <canvas ref="game" id="game-window" width="640" height="480">Your browser does not support the HTML5 canvas tag.</canvas>
     </div>
   </body>
   <script src="../public/game.mjs" type="module"></script>

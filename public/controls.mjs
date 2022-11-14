@@ -1,44 +1,32 @@
-function controls(gameArea, player, playerArt, socket) {
-  if (player.isMain) {
-    player.speedX = 0
-    player.speedY = 0
-    function checkGameAreaKeys() {
-      const UP = gameArea.keys && (gameArea.keys[87] || gameArea.keys[38])
-      const DOWN = gameArea.keys && (gameArea.keys[83] || gameArea.keys[40])
-      const LEFT = gameArea.keys && (gameArea.keys[65] || gameArea.keys[37])
-      const RIGHT = gameArea.keys && (gameArea.keys[68] || gameArea.keys[39])
-      if (UP) move('up')
-      if (DOWN) move('down')
-      if (LEFT) move('left')
-      if (RIGHT) move('right')
-      //if (!UP && !DOWN && !LEFT && !RIGHT) clearMove()
+const controls = (player, socket) => {
+  const getKey = e => {
+    if (e.keyCode === 87 || e.keyCode === 38) return 'up';
+    if (e.keyCode === 83 || e.keyCode === 40) return 'down';
+    if (e.keyCode === 65 || e.keyCode === 37) return 'left';
+    if (e.keyCode === 68 || e.keyCode === 39) return 'right';
+  }
+
+  document.onkeydown = e => {
+    let dir = getKey(e);
+
+    if (dir) {
+      player.moveDir(dir);
+
+      // Pass current player position back to the server
+      socket.emit('move-player', dir, { x: player.x, y: player.y });
     }
-    function move(dir) {
-      //player.image = playerArt.windowsArt
-      if (dir == 'up') player.speedY = -10
-      if (dir == 'down') player.speedY = 10
-      if (dir == 'left') player.speedX = -10
-      if (dir == 'right') player.speedX = 10
-      if (!dir) clearMove()
-      socket.emit('move-player', player)
+  }
+
+  document.onkeyup = e => {
+    let dir = getKey(e);
+
+    if (dir) {
+      player.stopDir(dir);
+
+      // Pass current player position back to the server
+      socket.emit('stop-player', dir, { x: player.x, y: player.y });
     }
-    function clearMove() {
-      //player.image = playerArt.googleArt
-      player.speedX = 0
-      player.speedY = 0
-    }
-  
-    checkGameAreaKeys()
-    
   }
 }
 
-export default controls
-
-// Logs Pressed Keyboard Keys over DOM
-/*function checkKey(e) {
-  let event = window.event ? window.event : e;
-  console.log(`${String.fromCodePoint(event.keyCode)} ${event.keyCode}`)
-}
-document.addEventListener('keydown', checkKey, false)*/
-//document.onkeydown = checkKey;
+export default controls;

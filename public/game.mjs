@@ -23,7 +23,10 @@ window.addEventListener('load', (e) => {
   setTimeout(startGame, 100)
   // If after 1 second the game hasn't start drawing, set this message on the black screen
   setTimeout(() => {
-    if (!frame) drawDefaultMessage('Please refresh the page')
+    if (!frame) {
+      drawDefaultMessage('Please refresh the page')
+      setTimeout(() => location.reload(), 10000)
+    }
   }, 1000)
 });
 

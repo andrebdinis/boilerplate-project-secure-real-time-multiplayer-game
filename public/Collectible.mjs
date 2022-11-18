@@ -1,12 +1,7 @@
-/*class Collectible {
-  constructor({x, y, value, id}) {
-
-  }
-
-}*/
+import { generateStartPos, settings } from './settings.mjs'
 
 class Collectible {
-  constructor({ x = 10, y = 10, w = 15, h = 15, value = 1, id }) {
+  constructor({ x = generateStartPos.x(5), y = generateStartPos.y(5), w = settings.collectible.width, h = settings.collectible.height, value = 1, id }) {
     this.x = x;
     this.y = y;
     this.w = w;
@@ -17,11 +12,13 @@ class Collectible {
 
   draw(context, imgObj) {
     if (this.value === 1) {
-      context.drawImage(imgObj.bronzeCoinArt, this.x, this.y);
+      context.drawImage(imgObj.bronzeCoinArt, this.x, this.y, this.w, this.h);
     } else if (this.value === 2) {
-      context.drawImage(imgObj.silverCoinArt, this.x, this.y);
+      context.drawImage(imgObj.silverCoinArt, this.x, this.y, this.w, this.h);
+    } else if (this.value === 3) {
+      context.drawImage(imgObj.goldCoinArt, this.x, this.y, this.w, this.h);
     } else {
-      context.drawImage(imgObj.goldCoinArt, this.x, this.y);
+      context.drawImage(imgObj.bitcoinCoinArt, this.x, this.y, 40, 40); // drawn
     }
   }
 }

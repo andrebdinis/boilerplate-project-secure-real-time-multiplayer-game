@@ -14,6 +14,16 @@ function calcDistanceBetweenPoints(obj1, obj2) {
   return distance
 }
 
+function getLinearEquation(p1, p2) {
+  // p1 - origin, p2 - target
+  let m = (p2.y - p1.y) / (p2.x - p1.x)
+  let b = p2.y - (m * p2.x)
+  return { slope: m, y_intersect: b }
+  // y = m*x + b
+  // y = (y2-y1 / x2-x1) * x + b
+  // b = y - (m*x)
+}
+
 function randomCoordinates(obj) {
   let x = randomInt(obj.x, obj.width)
   let y = randomInt(obj.y, obj.height)
@@ -33,4 +43,4 @@ function randomObjValue(obj) {
   return chosen_value
 }
 
-export { uid, randomInt, randomCoordinates, randomObjKey }
+export { uid, randomInt, randomCoordinates, randomObjKey, calcDistanceBetweenPoints }

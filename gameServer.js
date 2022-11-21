@@ -4,14 +4,16 @@ let Collectible = require('./public/Collectible.mjs')
 const { uid } = require('./public/random.mjs')
 const { getTime } = require('./public/time.mjs')
 let players // list of connected players
-let coinCount, maxCoinCount, coin
+let coinCount, maxCoinCount, coin, coinsLeft
 let result
 let connsLimitPerIp = 2 // Connections Limit per IP Restriction
+let GAME_STATE;
 
 function resetGameVariables() {
   players = []
   coinCount = 0
-  maxCoinCount = 5 // coins generated until end of game
+  maxCoinCount = 5 // coins to be generated until game over
+  coinsLeft = maxCoinCount // controls how many coins remain to be caught
   coin = new Collectible({ id: uid() })
   coinCount++
   result = null
@@ -27,6 +29,7 @@ function initiateGame(io) {
 
 
 function runIO(io) {
+  GAME_STATE = 'INITIATED';
   
   io.on('connection', (socket) => {
     let ip = getIpAddress(socket);
@@ -43,7 +46,7 @@ function runIO(io) {
     else {
       
       // Gives time for Client-Side (game.mjs) to fully load its document in order to be able to listen server.js requests
-      setTimeout(() => socket.emit('initiate', { id: socket.id, players: players, coin: coin, ip: ip }), 250)
+      setTimeout(() => socket.emit('initiate', { GAME_STATE: GAME_STATE, id: socket.id, players: players, coin: coin, coinsLeft: coinsLeft, ip: ip }), 250)
         
       socket.on('new-player', (newPlayer) => {
         let hasPlayer = players.slice().filter((p) => p.id === newPlayer.id).length
@@ -63,6 +66,10 @@ function runIO(io) {
       socket.on('destroy-coin', ({ catcherId, coinValue, coinId }) => {
         // If coin received is really the coin to be destroyed
         if(coin.id === coinId) {
+          console.log(coin.id, coinId)
+          coin.id = 'null'; // necessary to keep from iterating lots of times when game ends
+          coinsLeft--;
+          io.emit('coins-left', coinsLeft)
     
           // Find and update player's score
           let playerObj = players.find((player) => player.id === catcherId)
@@ -71,6 +78,7 @@ function runIO(io) {
     
           // Was it the last coin to catch?
           if(coinCount === maxCoinCount) {
+            GAME_STATE = 'GAMEOVER';
             
             // Get sorted list of players by score (desc. order)
             let sortedPlayers = players.slice().sort((a,b) => b.score - a.score)
@@ -87,8 +95,10 @@ function runIO(io) {
   
             // resets game variables to prepare for a new game
             setTimeout(() => resetGameVariables(io), 100)
+            io.emit('coins-left', 0)
           }
           else {
+            GAME_STATE = 'INITIATED';
             // Create New Coin
             coinValue = (coinValue == 1 ||
                          coinValue == 2 ||
@@ -106,6 +116,7 @@ function runIO(io) {
       socket.on('restart-game', () => {
         io.emit('restart-game')
         resetGameVariables()
+        GAME_STATE = 'INITIATED';
       })
       
       socket.on('disconnect', () => {
@@ -120,6 +131,10 @@ function runIO(io) {
           }
           // else did not connect before, do not display anything to client
         }
+      })
+
+      socket.on('console-client', data => {
+        console.log(data)
       })
     }
   })

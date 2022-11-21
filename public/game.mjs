@@ -2,10 +2,12 @@
 
 import Player from './Player.mjs';
 import Collectible from './Collectible.mjs';
-import controls from './controls.mjs';
+//import controls from './controls.mjs';
+import controls_keyboard from './controls/controls-keyboard.mjs'
+import controls_touchscreen from './controls/controls-touchscreen.mjs'
 import { settings } from './settings.mjs';
 import { playerArt, coinArt } from './art.mjs'; // Preload game assets
-import { randomObjKey } from './random.mjs' // Randomize other player's art
+import { randomInt, randomObjKey } from './random.mjs' // Randomize other player's art
 import { getTime } from './time.mjs'
 
 const socket = io()
@@ -15,24 +17,31 @@ const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true
 let frame; // animation frame
 let currPlayers = []; // list of online players
 let item; // coin
+let itemsLeft; // how many coins remain to be caught until game over
 let gameOver; // Game over state: 'win' or 'lose'
+
+// FPS Variables
+let calculating=false;
+let animFrameTime, fps;
+animFrameTime = fps = 0;
 
 
 // When page loads, starts listening for server.js requests
 window.addEventListener('load', (e) => {
   setTimeout(startGame, 100)
-  // If after 1 second the game hasn't start drawing, set this message on the black screen
+  // If after 1 second the game hasn't start drawing, set message 'Refresh page' on the black screen
   setTimeout(() => {
     if (!frame) {
       drawDefaultMessage('Please refresh the page')
-      setTimeout(() => location.reload(), 10000)
+      // After 5 seconds page is automatically refreshed
+      setTimeout(() => location.reload(), 5000)
     }
   }, 1000)
 });
 
 
 function startGame() {
-  socket.on('initiate', ({ id, players, coin, ip }) => {
+  socket.on('initiate', ({ GAME_STATE, id, players, coin, coinsLeft, ip }) => {
     console.clear();
     console.log(`${getTime()}: I'm connected as CPU-${id.slice(0,4)}`);
   
@@ -41,12 +50,14 @@ function startGame() {
     cancelAnimationFrame(frame);
 
     // If player enters in game over state, restart game (refresh page) for everyone
-    if (gameOver) { socket.emit('restart-game') }
+    if (GAME_STATE === 'GAMEOVER') { socket.emit('restart-game') }
   
     // Create main player when we log in
     const mainPlayer = new Player({ id, main: true, imageRef: randomObjKey(playerArt.otherPlayerArt), ip, username: id.slice(0,4) })
   
-    controls(mainPlayer, socket);
+    //controls(mainPlayer, socket);
+    controls_keyboard(mainPlayer, socket);
+    controls_touchscreen(mainPlayer, socket);
 
     // Log the players that were already connected
     logPlayersAlreadyConnected(players)
@@ -56,6 +67,8 @@ function startGame() {
     currPlayers = players.map(val => new Player(val)).concat(mainPlayer);
     // and create current coin (received from server)
     item = new Collectible(coin);
+    // and update how many coins left until game over
+    itemsLeft = coinsLeft;
 
     
     // Send main player to server
@@ -92,12 +105,15 @@ function startGame() {
     // Handle new coin gen
     socket.on('new-coin', newCoin => item = new Collectible(newCoin));
 
+    // Handle coins remaining value
+    socket.on('coins-left', coinsLeft => itemsLeft = coinsLeft);
+
     // Handle gameOver state
     socket.on('game-over', result => gameOver = result);
 
     // Handle restarting game (one player pushes 'ENTER' when on game over state)
     socket.on('restart-game', () => {
-      setTimeout( () => location.reload(), 50)
+      setTimeout( () => location.reload(), randomInt(50,100,1))
     })
 
     // Handle player disconnection
@@ -108,37 +124,25 @@ function startGame() {
       if (gameOver) { socket.emit('restart-game') }
     });
 
-    // Start drawing loop (by requestAnimationFrame(draw))
+    // Start drawing loop (with requestAnimationFrame(draw))
     draw();
 
   });
 }
 
-//const draw = (animationFrameTimeStamp) => {
 const draw = (animationFrameTimeStamp) => {
-  // Show Time Stamps
   // showTimeStamps(animationFrameTimeStamp, frame)
+  animFrameTime = animationFrameTimeStamp;
 
-  // Clear canvas
-  context.clearRect(0, 0, settings.canvas.width, settings.canvas.height);
+  clearCanvas();
 
-  // Set background color
-  context.fillStyle = settings.colors.darkBlue;
-  context.fillRect(0, 0, settings.canvas.width, settings.canvas.height);
+  drawBackgroundColor();
+  drawGameAreaBorder();
+  drawControlsText();
+  drawGameTitle();
 
-  // Create border for play field
-  context.strokeStyle = settings.colors.white;
-  context.strokeRect(settings.gameArea.minX, settings.gameArea.minY, settings.gameArea.width, settings.gameArea.height);
-
-  // Controls text
-  context.fillStyle = settings.colors.white;
-  context.font = `13px ${settings.fontFamily}`;
-  context.textAlign = 'center';
-  context.fillText('Controls: WASD', 100, 32.5);
-
-  // Game title
-  context.font = `16px ${settings.fontFamily}`;
-  context.fillText('Coin Race', settings.canvas.width / 2, 32.5);
+  startDrawingFPS();
+  drawCoinsLeft();
 
   // Calculate score and draw players each frame
   currPlayers.forEach(player => {
@@ -154,16 +158,7 @@ const draw = (animationFrameTimeStamp) => {
   }
   
   if (gameOver) {
-    context.fillStyle = 'white';
-    
-    context.font = `15px ${settings.fontFamily}`;
-    let [message1, message2, message3] = victoryOrLossMessage(gameOver);
-    const height = (settings.canvas.height / 2) - 50
-    context.fillText(message1, settings.canvas.width / 2, height);
-    
-    context.font = `13px ${settings.fontFamily}`;
-    context.fillText(message2, settings.canvas.width / 2, height + 40);
-    context.fillText(message3, settings.canvas.width / 2, height + 60);
+    drawGameOverMessage();
     
     // On Game Over, "ENTER" keybind is activated to be possible to refresh everyone's page to start a new game at the same time
     document.onkeydown = (e) => {
@@ -177,27 +172,49 @@ const draw = (animationFrameTimeStamp) => {
 }
 
 
-function drawDefaultMessage(msg) {
-  const height = (settings.canvas.height / 2) - 50
+// DRAW FUNCTIONS
+
+function clearCanvas() {
+  context.clearRect(0, 0, settings.canvas.width, settings.canvas.height);
+}
+
+function drawBackgroundColor() {
+  context.fillStyle = settings.colors.darkBlue;
+  context.fillRect(0, 0, settings.canvas.width, settings.canvas.height);
+}
+
+function drawGameAreaBorder() {
+  context.strokeStyle = settings.colors.white;
+  context.strokeRect(settings.gameArea.minX, settings.gameArea.minY, settings.gameArea.width, settings.gameArea.height);
+}
+
+function drawControlsText() {
   context.fillStyle = settings.colors.white;
+  context.font = `13px ${settings.fontFamily}`;
   context.textAlign = 'center';
+  context.fillText('Controls: WASD', 100, 32.5);
+}
+
+function drawGameTitle() {
+  context.fillStyle = settings.colors.white;
+  context.font = `16px ${settings.fontFamily}`;
+  context.fillText('Coin Race', settings.canvas.width / 2, 32.5);
+}
+
+function drawGameOverMessage() {
+  context.fillStyle = 'white';
+  
   context.font = `15px ${settings.fontFamily}`;
-  context.fillText(msg, settings.canvas.width / 2, height);
+  let [message1, message2, message3] = victoryOrLossMessage();
+  const width = settings.canvas.width / 2;
+  const height = (settings.canvas.height / 2) - 50;
+  context.fillText(message1, width, height);
+  
+  context.font = `13px ${settings.fontFamily}`;
+  context.fillText(message2, width, height + 40);
+  context.fillText(message3, width, height + 60);
 }
-
-function forceSyncInCaseOfLag(player, posObj) {
-  player.x = posObj.x;
-  player.y = posObj.y;
-}
-
-function logPlayersAlreadyConnected(players) {
-  if(players.length > 0) {
-    let str = `${getTime()}: CPU's already connected:`
-    players.map((player) => console.log(str += `\n- CPU-${player.id.slice(0,4)}`))
-  }
-}
-
-function victoryOrLossMessage(gameOver) {
+function victoryOrLossMessage() {
   let msg1, msg2, msg3;
   if(gameOver == 'win') {
     msg1 = `Congratulations, you ${gameOver.toUpperCase()}!`
@@ -212,6 +229,66 @@ function victoryOrLossMessage(gameOver) {
   return [msg1, msg2, msg3]
 }
 
+function startDrawingFPS() {
+  if (!calculating) {
+    calculating = true;
+    let startFrame = frame
+    setTimeout(() => {
+      let endFrame = frame
+      fps = endFrame - startFrame
+      drawFPS();
+      calculating = false;
+    }, 1000)
+  }
+  drawFPS();
+}
+function drawFPS() {
+  context.save()
+  context.fillStyle = settings.colors.gray;
+  context.font = `8px ${settings.fontFamily}`;
+  context.textAlign = 'left'
+  context.fillText(`FPS:${fps?fps:'--'}  Frame:${frame} 
+ Time:${(animFrameTime/1000).toFixed(3)} s`, settings.gameArea.minX + 5, settings.gameArea.minY + 15);
+  context.restore()
+}
+
+function drawCoinsLeft() {
+  context.save()
+  context.fillStyle = settings.colors.gray;
+  context.font = `9px ${settings.fontFamily}`;
+  context.textAlign = "right";
+  context.fillText('Coins Remaining:'+String(itemsLeft).padStart(2,'0'), (settings.gameArea.maxX) - 75, settings.gameArea.minY + 15);
+  context.restore()
+}
+
+
+// DRAW A MESSAGE ON BLACK CANVAS SCREEN
+function drawDefaultMessage(msg) {
+  const height = (settings.canvas.height / 2) - 50
+  context.fillStyle = settings.colors.white;
+  context.textAlign = 'center';
+  context.font = `15px ${settings.fontFamily}`;
+  context.fillText(msg, settings.canvas.width / 2, height);
+}
+
+
+// FOR 'MOVE-PLAYER' AND 'STOP-PLAYER' LISTENERS
+function forceSyncInCaseOfLag(player, posObj) {
+  player.x = posObj.x;
+  player.y = posObj.y;
+}
+
+
+// LOG PLAYERS ALREADY CONNECTED
+function logPlayersAlreadyConnected(players) {
+  if(players.length > 0) {
+    let str = `${getTime()}: CPU's already connected:`
+    players.map((player) => console.log(str += `\n- CPU-${player.id.slice(0,4)}`))
+  }
+}
+
+
+// FOR BENCHMARK / METRIC PURPOSES
 function showTimeStamps(animationFrameTimeStamp, frame) {
   console.log("DOMHighResTimeStamp (ms):", animationFrameTimeStamp)
   console.log("Animation Frame:", frame)

@@ -1,4 +1,9 @@
-const controls = (player, socket) => {
+import { settings } from '../settings.mjs'
+
+
+const controls_keyboard = (player, socket) => {
+
+  // Keyboard Functionality
   
   const getKey = e => {
     // Letter Keys (WSAD) || Arrow Keys (UpDownLeftRight)
@@ -13,6 +18,7 @@ const controls = (player, socket) => {
     if (direction) {
       player.moveDir(direction);
       socket.emit('move-player', direction, { x: player.x, y: player.y });
+      //e.preventDefault(); // prevents the browser from moving
     }
   }
 
@@ -21,8 +27,10 @@ const controls = (player, socket) => {
     if (direction) {
       player.stopDir(direction);
       socket.emit('stop-player', direction, { x: player.x, y: player.y });
+      //e.preventDefault();
     }
   }
+
 }
 
-export default controls;
+export default controls_keyboard;

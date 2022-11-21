@@ -16,6 +16,7 @@ const gameArea = {
 const colors = {
   darkBrown: '#220', // FCC's original brown
   white: 'rgba(255, 255, 255, 1)', // "white"
+  gray: 'rgba(200, 200, 200, 0.5)',
   darkBlue: 'rgba(0, 36, 57, 1)'
 }
 const fontFamily = `'Press Start 2P'`

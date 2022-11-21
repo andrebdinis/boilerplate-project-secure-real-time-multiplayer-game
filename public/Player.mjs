@@ -26,15 +26,17 @@ class Player {
       context.font = `13px ${settings.fontFamily}`;
       context.fillText(this.calculateRank(currPlayers), 560, 32.5);
       context.drawImage(imgObj.mainPlayerArt, this.x, this.y, this.w, this.h);
+
+      // draw player's username above its head
+      drawPlayerUsername(context, this, settings.colors.white)
+      drawPlayerScore(context, this, settings.colors.white)
     }
     else {
-        context.drawImage(imgObj.otherPlayerArt[this.imageRef], this.x, this.y, this.w, this.h);
+      context.drawImage(imgObj.otherPlayerArt[this.imageRef], this.x, this.y, this.w, this.h);
+      
+      // draw player's username above its head
+      drawPlayerUsername(context, this, settings.colors.gray)
     }
-    
-    // draw player's username above its head
-    context.fillStyle = settings.colors.white
-    context.font = `9px ${settings.fontFamily}`;
-    context.fillText('CPU-'+this.username, this.x+(this.w/2), this.y);
 
     if (this.collision(coin)) {
       coin.caught = true;
@@ -102,6 +104,24 @@ class Player {
 
     return `Rank: ${mainPlayerRank} / ${totalPlayers}`
   }
+}
+
+// draw player's username above its head
+function drawPlayerUsername(context, player, color) {
+  context.save()
+  context.fillStyle = color
+  context.font = `9px ${settings.fontFamily}`;
+  context.fillText('CPU-'+player.username, player.x+(player.w/2), player.y);
+  context.restore()
+}
+
+function drawPlayerScore(context, player, color) {
+  context.save()
+  context.fillStyle = color
+  context.font = `9px ${settings.fontFamily}`;
+  context.textAlign = "right";
+  context.fillText('Score:'+player.score, (settings.gameArea.maxX + player.w) - 5, settings.gameArea.minY + 15);
+  context.restore()
 }
 
 export default Player;

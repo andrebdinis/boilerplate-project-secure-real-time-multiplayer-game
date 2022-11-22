@@ -12,7 +12,7 @@ let GAME_STATE;
 function resetGameVariables() {
   players = []
   coinCount = 0
-  maxCoinCount = 5 // coins to be generated until game over
+  maxCoinCount = 25 // coins to be generated until game over
   coinsLeft = maxCoinCount // controls how many coins remain to be caught
   coin = new Collectible({ id: uid() })
   coinCount++

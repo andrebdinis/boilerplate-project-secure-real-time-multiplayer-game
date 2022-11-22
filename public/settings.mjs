@@ -1,4 +1,4 @@
-import { randomInt } from './random.mjs'
+import { randomInt } from './util/random.mjs'
 
 const canvas = { width: 640, height: 480 }
 const player = { width: 45, height: 45 }

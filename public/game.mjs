@@ -2,13 +2,12 @@
 
 import Player from './Player.mjs';
 import Collectible from './Collectible.mjs';
-//import controls from './controls.mjs';
 import controls_keyboard from './controls/controls-keyboard.mjs'
 import controls_touchscreen from './controls/controls-touchscreen.mjs'
 import { settings } from './settings.mjs';
 import { playerArt, coinArt } from './art.mjs'; // Preload game assets
-import { randomInt, randomObjKey } from './random.mjs' // Randomize other player's art
-import { getTime } from './time.mjs'
+import { randomInt, randomObjKey } from './util/random.mjs' // Randomize other player's art
+import { getTime } from './util/time.mjs'
 
 const socket = io()
 
@@ -55,15 +54,13 @@ function startGame() {
     // Create main player when we log in
     const mainPlayer = new Player({ id, main: true, imageRef: randomObjKey(playerArt.otherPlayerArt), ip, username: id.slice(0,4) })
   
-    //controls(mainPlayer, socket);
     controls_keyboard(mainPlayer, socket);
     controls_touchscreen(mainPlayer, socket);
 
-    // Log the players that were already connected
     logPlayersAlreadyConnected(players)
 
-    // On the first login of a player,
-    // Update list of connected players (received from server) + add our main player
+    // When a player logs in,
+    // update list of connected players (received from server) + add our main player
     currPlayers = players.map(val => new Player(val)).concat(mainPlayer);
     // and create current coin (received from server)
     item = new Collectible(coin);
@@ -74,9 +71,8 @@ function startGame() {
     // Send main player to server
     socket.emit('new-player', mainPlayer);
     
-    // Add new player when someone logs in (any other player)
+    // Add new player when someone logs in
     socket.on('new-player', obj => {
-      // Check if player doesn't already exist
       const playerIds = currPlayers.map(player => player.id);
       if (!playerIds.includes(obj.id)) {
         currPlayers.push(new Player(obj));
@@ -126,7 +122,6 @@ function startGame() {
 
     // Start drawing loop (with requestAnimationFrame(draw))
     draw();
-
   });
 }
 
@@ -247,8 +242,8 @@ function drawFPS() {
   context.fillStyle = settings.colors.gray;
   context.font = `8px ${settings.fontFamily}`;
   context.textAlign = 'left'
-  context.fillText(`FPS:${fps?fps:'--'}  Frame:${frame} 
- Time:${(animFrameTime/1000).toFixed(3)} s`, settings.gameArea.minX + 5, settings.gameArea.minY + 15);
+  context.fillText(`FPS:${fps?fps:'--'}  Frame:${frame}
+ Time:${(animFrameTime/1000).toFixed(3)}s`, settings.gameArea.minX + 5, settings.gameArea.minY + 15);
   context.restore()
 }
 
@@ -278,7 +273,6 @@ function forceSyncInCaseOfLag(player, posObj) {
   player.y = posObj.y;
 }
 
-
 // LOG PLAYERS ALREADY CONNECTED
 function logPlayersAlreadyConnected(players) {
   if(players.length > 0) {
@@ -286,7 +280,6 @@ function logPlayersAlreadyConnected(players) {
     players.map((player) => console.log(str += `\n- CPU-${player.id.slice(0,4)}`))
   }
 }
-
 
 // FOR BENCHMARK / METRIC PURPOSES
 function showTimeStamps(animationFrameTimeStamp, frame) {

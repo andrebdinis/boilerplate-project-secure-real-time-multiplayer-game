@@ -67,8 +67,6 @@ app.use(function(req, res, next) {
 // Game/Socket.io Server-side (Node.js)--------------------- added!
 const { initiateGame } = require('./gameServer.js')
 initiateGame(io)
-// Gives time for Client-Side (game.mjs) to fully load its document in order to be able to listen server.js requests
-//setTimeout(() => initiateGame(io), 1000)
 
 // Get port number
 const portNum = process.env.PORT || 3000;

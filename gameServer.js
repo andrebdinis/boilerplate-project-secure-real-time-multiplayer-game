@@ -1,8 +1,8 @@
 //------------------ GAME/SOCKET.IO SERVER-SIDE (NODE.js) --------------------- added!
 
 let Collectible = require('./public/Collectible.mjs')
-const { uid } = require('./public/random.mjs')
-const { getTime } = require('./public/time.mjs')
+const { uid } = require('./public/util/random.mjs')
+const { getTime } = require('./public/util/time.mjs')
 let players // list of connected players
 let coinCount, maxCoinCount, coin, coinsLeft
 let result
@@ -34,7 +34,6 @@ function runIO(io) {
   io.on('connection', (socket) => {
     let ip = getIpAddress(socket);
     console.log(`${getTime()}: Connected ${socket.id}`)
-    //console.log(`${getTime()}: Connected ${socket.id}`, ip)
     
     // Check if an IP does not make more connections than what is allowed
     let connAuthorization = connsPerIpRestriction(ip, players, connsLimitPerIp);
@@ -52,7 +51,6 @@ function runIO(io) {
         let hasPlayer = players.slice().filter((p) => p.id === newPlayer.id).length
         if (!hasPlayer) players.push(newPlayer)
         socket.broadcast.emit('new-player', newPlayer)
-        //console.log('Currently connected ips', players.map((p)=>p.ip))
       })
     
       socket.on('move-player', (direction, posObj) => {
@@ -66,7 +64,6 @@ function runIO(io) {
       socket.on('destroy-coin', ({ catcherId, coinValue, coinId }) => {
         // If coin received is really the coin to be destroyed
         if(coin.id === coinId) {
-          console.log(coin.id, coinId)
           coin.id = 'null'; // necessary to keep from iterating lots of times when game ends
           coinsLeft--;
           io.emit('coins-left', coinsLeft)
@@ -133,9 +130,6 @@ function runIO(io) {
         }
       })
 
-      socket.on('console-client', data => {
-        console.log(data)
-      })
     }
   })
 }
